@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        input[type=text], select {
+            width: 100%;
+            padding: 12px 20px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 14px 20px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        div {
+            border-radius: 5px;
+            background-color: #f2f2f2;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Search Users</h1>
+        <form id="searchForm">
+            <input type="text" id="searchUUID" name="searchUUID" placeholder="UUID" required>
+            <button type="submit">Search</button>
+        </form>
+    </div>
+    <div id="resultDiv"></div>
+
+    <div>
+        <h1>Add Users</h1>
+        <form id="addUsers">
+            <input type="text" id="userName" name="userName" placeholder="Enter Name" required>
+            <input type="text" id="addUUID" name="UUID" placeholder="Enter UUID" required>
+            <button type="submit">Add User</button>
+        </form>
+    </div>
+
+    <div>
+        <h1>Remove Users</h1>
+        <form id="removeUser">
+            <input type="text" id="removeUUID" name="UUID" placeholder="Enter UUID" required>
+            <button type="submit">Remove User</button>
+        </form>
+    </div>
+
+    <div>
+        <h1>Rename User</h1>
+        <form id="renameUser">
+            <input type="text" id="newUsername" name="newUsername" placeholder="Enter New User Name" required>
+            <input type="text" id="renameUUID" name="UUID" placeholder="Enter UUID" required>
+            <button type="submit">Rename User</button>
+        </form>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        const resultDiv = document.getElementById('result');
+
+        async function fetchWithErrorHandling(url, options) {
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred');
+                }
+                return data;
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.textContent = error.message || 'An error occurred while processing your request';
+                throw error;
+            }
+        }
+
+        document.getElementById('searchForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const searchUUID = document.getElementById('searchUUID').value;
+            const resultDiv = document.getElementById('resultDiv');
+            try {
+                const response = await fetch(`/get_name?uuid=${encodeURIComponent(searchUUID)}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+        
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.textContent = `${data.name} is UUID ${searchUUID}.`;
+                } else {
+                    resultDiv.textContent = 'User not found'; 
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.textContent = error.message || 'An error occurred while processing your request';
+                throw error;
+                
+            }
+        });
+
+        document.getElementById('renameUser').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const UUID = document.getElementById('renameUUID').value;
+            const newName = document.getElementById('newUsername').value;
+            try {
+                await fetchWithErrorHandling('/accept_webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        payload_type: 'PersonRenamed',
+                        payload_content: {
+                            name: newName,
+                            person_id: UUID,
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+                resultDiv.textContent = `User ${UUID} renamed to ${newName}!`;
+            } catch (error) {
+                // Error is already handled in fetchWithErrorHandling
+            }
+        });
+
+        document.getElementById('addUsers').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const UUID = document.getElementById('addUUID').value;
+            const userName = document.getElementById('userName').value;
+            try {
+                await fetchWithErrorHandling('/accept_webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        payload_type: 'PersonAdded',
+                        payload_content: {
+                            name: userName,
+                            person_id: UUID,
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+                resultDiv.textContent = `${userName} added`;
+            } catch (error) {
+                // Error is already handled in fetchWithErrorHandling
+            }
+        });
+
+        document.getElementById('removeUser').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const UUID = document.getElementById('removeUUID').value;
+            try {
+                await fetchWithErrorHandling('/accept_webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        payload_type: 'PersonRemoved',
+                        payload_content: {
+                            person_id: UUID,
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+                resultDiv.textContent = `${UUID} removed`;
+            } catch (error) {
+                // Error is already handled in fetchWithErrorHandling
+            }
+        });
+    </script>
+</body>
+</html>
